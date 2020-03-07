@@ -1,0 +1,173 @@
+strComputer = "." 
+
+
+const strReport = "diskspace.txt"
+Const ForReading = 1
+Const ForWriting = 2
+Const ForAppending = 8
+
+
+Set FSO = CreateObject("Scripting.FileSystemObject")
+
+
+Set WriteTextFile = FSO.OpenTextFile(strReport, ForWriting, True)
+
+
+Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\CIMV2") 
+Set colItems = objWMIService.ExecQuery( _
+    "SELECT * FROM Win32_LogicalDisk where DeviceID='c:'",,48) 
+
+For Each objItem in colItems 
+
+if len(objItem.VolumeName)>0 then
+
+Wscript.Echo "-----------------------------------" & vbCrLf _
+        & "VolumeName:" & vbTab & objItem.VolumeName  & vbCrLf _
+        & "-----------------------------------" & vbCrLf _
+        & "FreeSpace:" & vbTab _
+        & FormatNumber((CDbl(objItem.FreeSpace)/1024/1024/1024))  & vbCrLf _
+        & "Size:" & vbTab & vbTab _
+        & FormatNumber((CDbl(objItem.Size)/1024/1024/1024))  & vbCrLf _
+        & "Occupied Space:" & vbTab _
+        & FormatNumber((CDbl(objItem.Size - objItem.FreeSpace)/1024/1024/1024)) 
+   end if
+
+WriteTextFile.WriteLine "--------------------------------------------------------"
+WriteTextFile.WriteLine "VolumeName:" & vbtab & objItem.VolumeName & vbtab
+WriteTextFile.WriteLine "--------------------------------------------------------"
+WriteTextFile.WriteLine "FreeSpace:" & vbtab & FormatNumber((CDbl(objItem.FreeSpace)/1024/1024/1024)) &"GB"  
+WriteTextFile.WriteLine ""
+WriteTextFile.WriteLine "Size:" & vbtab &  FormatNumber((CDbl(objItem.Size)/1024/1024/1024))  &"GB"  
+WriteTextFile.WriteLine ""
+WriteTextFile.WriteLine "Occupied Space:" & vbtab & FormatNumber((CDbl(objItem.Size - objItem.FreeSpace)/1024/1024/1024)) &"GB"   & vbtab 
+WriteTextFile.WriteLine ""
+
+
+Next
+
+
+Dim objWMIService, perfData, entry , colComputer, objComputer
+Dim strLogonUser, strComputer 
+
+strComputer = "." 
+
+Set objWMIService = GetObject("winmgmts:" _
+& "{impersonationLevel=impersonate}!\\" _ 
+& strComputer & "\root\cimv2") 
+Set perfData = objWMIService.ExecQuery _
+("Select * from Win32_PerfFormattedData_PerfOS_Memory") 
+Set colComputer = objWMIService.ExecQuery("Select * from Win32_ComputerSystem") 
+
+
+For Each objComputer in colComputer 
+Wscript.Echo "System Name: " & objComputer.Name & vbCr & "Total RAM " & objComputer.TotalPhysicalMemory/(1024*1024)
+WriteTextFile.WriteLine  "System Name: " & objComputer.Name & vbtab 
+WriteTextFile.WriteLine ""
+WriteTextFile.WriteLine  "Total RAM "   &  objComputer.TotalPhysicalMemory/(1024*1024)    & vbtab 
+WriteTextFile.WriteLine ""
+
+Next 
+
+For Each entry in perfData 
+Wscript.Echo "Available memory bytes: " & entry.AvailableBytes/(1024*1024)
+WriteTextFile.WriteLine  "Available Memory Bytes" &  entry.AvailableBytes/(1024*1024) & vbtab
+WriteTextFile.WriteLine ""
+Next
+
+
+
+
+
+Dim objRefresher
+Dim strList
+Dim colProcesses,objProcess
+
+strComputer = "."
+
+Set objRefresher = CreateObject("WbemScripting.SWbemRefresher")
+set colProcesses = objRefresher.AddEnum (objWMIService, "Win32_PerfFormattedData_PerfProc_Process").objectSet
+
+objRefresher.Refresh
+WScript.Sleep(1000)
+objRefresher.Refresh
+
+strList = "Name      Proc"
+for each objProcess in colProcesses
+    strList = strList & vbCr & objProcess.Name & "      " & objProcess.PercentProcessorTime
+next
+
+WriteTextFile.WriteLine strList
+
+WScript.Echo strList
+
+
+
+
+
+Dim objFSO : Set objFSO = CreateObject("Scripting.FileSystemObject")
+Dim objSHL : Set objSHL = CreateObject("WScript.Shell")
+Dim objMessage, Email, EPass, DroppedFile
+Dim strSubject, strTxtBody, strToEmail, strAttach
+Dim fso,file
+
+Set fso = CreateObject("Scripting.FileSystemObject" )            
+Set file = fso.OpenTextFile("diskspace.txt",1,1) 
+Dim str
+str=file.ReadAll
+
+
+
+
+
+
+
+
+ 
+ Set objMessage = CreateObject("CDO.Message")
+ objMessage.Subject = "Test"
+ objMessage.From = "sender@gmail.com"
+ objMessage.To = "recipient@gmail.com"
+ objMessage.TextBody = str
+ 
+	
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/sendusing") = 2
+ 
+ 'Name or IP of Remote SMTP Server
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpserver") = "smtp.gmail.com"
+
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpauthenticate") = 1
+
+ 'Your UserID on the SMTP server
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/sendusername") = "sender@gmail.com"
+
+ 'Your password on the SMTP server
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/sendpassword") = "sender password"
+
+ 'Server port (typically 25)
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpserverport") = "465"
+
+ 'Use SSL for the connection (False or True)
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpusessl") = True
+
+ 'Connection Timeout in seconds (the maximum time CDO will try to establish a connection to the SMTP server)
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpconnectiontimeout") = 60
+
+ objMessage.Configuration.Fields.Update
+ objMessage.Send
+
+ If IsEmpty(strAttach) then
+  MsgBox "Message Sent",vbInformation
+ Else
+  MsgBox "Message Sent" &vbLf&strAttach,vbInformation
+ End If
+
+
+WScript.Quit
