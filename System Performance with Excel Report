@@ -1,0 +1,223 @@
+Set objExcel = CreateObject("Excel.Application")  
+objExcel.visible=False                               
+Set obj1 = objExcel.Workbooks.Open("C:\Users\deshm\Desktop\OASYS SYSTEM PERFORM TEMPLATE.xlsx") 
+Set ws = obj1.Sheets("DataSheet")
+
+ws = ws.Range("B12:C20").ClearContents
+
+
+strComputer = "."
+
+Set objWMIService = GetObject("winmgmts:\\" & strComputer & "\root\CIMV2") 
+Set colItems = objWMIService.ExecQuery( _
+    "SELECT * FROM Win32_LogicalDisk where DeviceID='c:'",,48) 
+
+For Each objItem in colItems 
+
+if len(objItem.VolumeName)>0 then
+
+ end if
+
+objExcel.Cells(6,3).Value = objItem.VolumeName
+objExcel.Cells(7,3).Value = FormatNumber((CDbl(objItem.Size)/1024/1024/1024))
+objExcel.Cells(8,3).Value = FormatNumber((CDbl(objItem.Size - objItem.FreeSpace)/1024/1024/1024))
+objExcel.Cells(9,3).Value = FormatNumber((CDbl(objItem.FreeSpace)/1024/1024/1024))
+
+
+
+
+
+Next
+
+
+Dim  perfData, entry , colComputer, objComputer
+Dim strLogonUser, strComputer , RAMUsage, TotalRAM
+
+strComputer = "." 
+
+Set objWMIService = GetObject("winmgmts:" _
+& "{impersonationLevel=impersonate}!\\" _ 
+& strComputer & "\root\cimv2") 
+Set perfData = objWMIService.ExecQuery _
+("Select * from Win32_PerfFormattedData_PerfOS_Memory") 
+Set colComputer = objWMIService.ExecQuery("Select * from Win32_ComputerSystem") 
+
+
+For Each objComputer in colComputer 
+
+objExcel.Cells(2,3).Value = objComputer.Name
+objExcel.Cells(3,3).Value = objComputer.TotalPhysicalMemory/(1024*1024)  
+
+
+TotalRAM = objComputer.TotalPhysicalMemory/(1024*1024)
+Next 
+
+
+
+
+For Each entry in perfData 
+
+RAMUsage = TotalRAM - entry.AvailableBytes/(1024*1024)
+
+objExcel.Cells(4,3).Value = RAMUsage
+Next
+
+
+
+
+
+
+
+Dim  strList
+Dim colProcesses, sliceProcesses()
+Dim objProcess, tempProcess
+Dim i, j, iPos, iMax, listLen
+
+strComputer = "."
+Set objWMIService = GetObject("winmgmts:{impersonationLevel=impersonate}!\\"  _
+                                & strComputer & "\root\cimv2")
+
+Set objRefresher = CreateObject("WbemScripting.SWbemRefresher")
+set colProcesses = objRefresher.AddEnum (objWMIService, _
+                            "Win32_PerfFormattedData_PerfProc_Process").objectSet
+
+objRefresher.Refresh
+WScript.Sleep(1000)
+objRefresher.Refresh
+
+Redim Preserve sliceProcesses(0)
+i = 0
+
+'strip Idle, Total, and 0 values
+for each objProcess in colProcesses
+    if ((objProcess.PercentProcessorTime > 0) _
+            and (not objProcess.name = "Idle") _
+            and (not objProcess.Name = "_Total")) then
+        Redim Preserve sliceProcesses(i)
+        set sliceProcesses(i) = objProcess
+        i = i+1
+    end if
+next
+
+'Selection Sort, didn't feel like fighting with it to get a slice
+for iPos = 0 to UBound(sliceProcesses)
+    iMax = iPos
+    
+    for i = iPos+1 to UBound(sliceProcesses)
+        
+        if CInt(sliceProcesses(i).PercentProcessorTime) > _
+                    CInt(sliceProcesses(iMax).PercentProcessorTime) then
+            iMax = i
+        end if
+    next
+    
+    if (not iMax = iPos) then
+        set tempProcess = sliceProcesses(iPos)
+        set sliceProcesses(iPos) = sliceProcesses(iMax)
+        set sliceProcesses(iMax) = tempProcess
+    end if
+next
+
+
+
+
+
+if UBound(sliceProcesses) > 10 then listLen = 10 else listLen = UBound(sliceProcesses)
+
+'Sad excuse for Array Slice
+for i = 0 to listLen
+        strList = strList + vbCR & sliceProcesses(i).Name & _
+                "    " & sliceProcesses(i).PercentProcessorTime
+        objExcel.Cells(i+12,2) = sliceProcesses(i).Name
+        objExcel.Cells(i+12,3) = sliceProcesses(i).PercentProcessorTime
+
+next
+
+
+
+                                            
+  
+
+objExcel.Cells(1,2) = Date
+
+obj1.Save
+obj1.Close
+objExcel.Quit
+
+
+Dim objFSO : Set objFSO = CreateObject("Scripting.FileSystemObject")
+Dim objSHL : Set objSHL = CreateObject("WScript.Shell")
+Dim objMessage, Email, EPass, DroppedFile
+Dim strSubject, strTxtBody, strToEmail, strAttach, AddAttachment
+
+
+
+
+
+
+
+
+
+ 
+ Set objMessage = CreateObject("CDO.Message")
+ objMessage.Subject = "Test"
+ objMessage.From = "deshmukhpurushothaman@gmail.com"
+ objMessage.To = "deshmukhpurushothaman@gmail.com"
+ objMessage.TextBody = str
+ objMessage.AddAttachment  "C:\Users\deshm\Desktop\OASYS SYSTEM PERFORM TEMPLATE.xlsx"
+  
+	
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/sendusing") = 2
+ 
+ 'Name or IP of Remote SMTP Server
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpserver") = "smtp.gmail.com"
+
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpauthenticate") = 1
+
+ 'Your UserID on the SMTP server
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/sendusername") = "deshmukhpurushothaman@gmail.com"
+
+ 'Your password on the SMTP server
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/sendpassword") = "purushoth"
+
+ 'Server port (typically 25)
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpserverport") = "465"
+
+ 'Use SSL for the connection (False or True)
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpusessl") = True
+
+ 'Connection Timeout in seconds (the maximum time CDO will try to establish a connection to the SMTP server)
+ objMessage.Configuration.Fields.Item _
+ ("http://schemas.microsoft.com/cdo/configuration/smtpconnectiontimeout") = 60
+
+ objMessage.Configuration.Fields.Update
+ objMessage.Send
+
+ If IsEmpty(AddAttachment) then
+  MsgBox "Message Sent",vbInformation
+ Else
+  MsgBox "Message Sent" &vbLf&strAttach,vbInformation
+ End If
+
+
+
+
+
+
+
+
+
+
+     
+                                                 
+Set obj1=Nothing                                 
+Set objExcel=Nothing  
+Msgbox "Done"   
+WScript.Quit   
